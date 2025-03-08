@@ -1,22 +1,21 @@
 import 'dotenv/config';
 import express from 'express';
 import {
-  ButtonStyleTypes,
-  InteractionResponseFlags,
   InteractionResponseType,
   InteractionType,
-  MessageComponentTypes,
   verifyKeyMiddleware,
 } from 'discord-interactions';
-import { getRandomEmoji, DiscordRequest } from './utils.js';
-import { getShuffledOptions, getResult } from './game.js';
+import { getRandomEmoji } from './utils.js';
+import { createApi } from "unsplash-js";
+
+const api = createApi({
+  accessKey: process.env.UNSPLASH_ACCESS_KEY,
+});
 
 // Create an express app
 const app = express();
 // Get port, or default to 3000
 const PORT = process.env.PORT || 3000;
-// To keep track of our active games
-const activeGames = {};
 
 /**
  * Interactions endpoint URL where Discord will send HTTP requests
@@ -48,6 +47,31 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         data: {
           // Fetches a random emoji to send from a helper function
           content: `hello world ${getRandomEmoji()}`,
+        },
+      });
+    }
+    else if (name === 'rb') {
+      // Send a message into the channel where command was triggered from
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          // Fetches a random bird picture from an API call
+          content: await api.photos
+          .getRandom({
+            query: 'bird',
+            count: 1,
+          })
+          .then(result => {
+            if (result.response && result.response.results.length > 0) {
+              return result.response.results[0].urls.small;
+            } else {
+              return "No image found. Here's a bird instead: 🐦";
+            }
+          })
+          .catch(() => {
+            console.log("something went wrong!");
+            return "Error fetching image.";
+          }),
         },
       });
     }
