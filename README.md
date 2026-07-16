@@ -43,8 +43,3 @@ docker compose down
 - `src/` contains the bot source.
 - `data/` stores saved schedules when running locally.
 - `Dockerfile` and `docker-compose.yml` are ready for container deployment.
-
-## GitHub Actions
-
-- `.github/workflows/ci.yml` runs the smoke test on pull requests and pushes to `main`.
-- `.github/workflows/deploy.yml` builds and publishes the Docker image to GitHub Container Registry as `ghcr.io/<owner>/<repo>`.
