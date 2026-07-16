@@ -1,13 +1,15 @@
 # BirdBot
 
-BirdBot posts a random bird image and a random bird fact on a schedule you choose from slash commands.
+BirdBot posts a random bird from a cached eBird taxonomy file, then looks up the bird on Wikipedia for a photo and description.
 
 ## Quick Start
 
-1. Copy `.env.example` to `.env` and fill in your Discord token and client ID.
+1. Copy `.env.example` to `.env` and fill in your Discord token, client ID, and eBird API key.
 2. Install dependencies with `npm install`.
 3. Register commands with `npm run register`.
 4. Start the bot with `npm start`.
+
+On first run, the bot downloads the eBird taxonomy JSON and saves it to `data/ebird-taxonomy.json`. Later runs reuse that file.
 
 ## Commands
 

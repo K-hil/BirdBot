@@ -34,37 +34,112 @@ export function getIntervalConfig(intervalKey) {
   return BIRD_INTERVALS[intervalKey] ?? null;
 }
 
+export function resolveSchedulesPath(customPath) {
+  return path.resolve(customPath ?? process.env.BIRD_SCHEDULES_FILE ?? './data/schedules.json');
+}
+
+export function resolveTaxonomyPath(customPath) {
+  return path.resolve(customPath ?? process.env.BIRD_TAXONOMY_FILE ?? './data/ebird-taxonomy.json');
+}
+
 export function getRandomBirdFact() {
   return BIRD_FACTS[Math.floor(Math.random() * BIRD_FACTS.length)];
 }
 
-export async function fetchRandomBirdImage() {
-  const response = await fetch('https://random-d.uk/api/random');
+async function fileExists(filePath) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
+export async function loadBirdTaxonomy(filePath) {
+  if (await fileExists(filePath)) {
+    const content = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(content);
+  }
+
+  const apiKey = process.env.EBIRD_API_KEY;
+
+  if (!apiKey) {
+    throw new Error('Missing EBIRD_API_KEY');
+  }
+
+  const response = await fetch('https://api.ebird.org/v2/ref/taxonomy/ebird?fmt=json', {
+    headers: {
+      'X-eBirdApiToken': apiKey,
+    },
+  });
 
   if (!response.ok) {
-    throw new Error(`Bird image request failed with status ${response.status}`);
+    throw new Error(`eBird taxonomy request failed with status ${response.status}`);
   }
 
   const data = await response.json();
 
-  if (!data?.url) {
-    throw new Error('Bird image response did not include a url');
+  if (!Array.isArray(data)) {
+    throw new Error('eBird taxonomy response did not contain an array');
   }
 
-  return data.url;
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+
+  return data;
 }
 
-export async function fetchBirdDrop() {
-  const [imageUrl, fact] = await Promise.all([
-    fetchRandomBirdImage(),
-    Promise.resolve(getRandomBirdFact()),
-  ]);
+export function pickRandomBird(taxonomy) {
+  const speciesOnly = taxonomy.filter((bird) => bird?.category === 'species' && bird?.comName && bird?.sciName);
+  const pool = speciesOnly.length > 0 ? speciesOnly : taxonomy.filter((bird) => bird?.comName && bird?.sciName);
 
-  return { imageUrl, fact };
+  if (pool.length === 0) {
+    throw new Error('No birds were found in the taxonomy file');
+  }
+
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export function resolveSchedulesPath(customPath) {
-  return path.resolve(customPath ?? process.env.BIRD_SCHEDULES_FILE ?? './data/schedules.json');
+export async function fetchWikipediaBirdInfo(scientificName) {
+  const searchUrl = new URL('https://en.wikipedia.org/w/api.php');
+  searchUrl.searchParams.set('action', 'query');
+  searchUrl.searchParams.set('list', 'search');
+  searchUrl.searchParams.set('srsearch', scientificName);
+  searchUrl.searchParams.set('format', 'json');
+  searchUrl.searchParams.set('origin', '*');
+
+  const searchResponse = await fetch(searchUrl);
+
+  if (!searchResponse.ok) {
+    throw new Error(`Wikipedia search request failed with status ${searchResponse.status}`);
+  }
+
+  const searchData = await searchResponse.json();
+  const pageTitle = searchData?.query?.search?.[0]?.title;
+
+  if (!pageTitle) {
+    throw new Error(`No Wikipedia page found for ${scientificName}`);
+  }
+
+  const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`;
+  const summaryResponse = await fetch(summaryUrl);
+
+  if (!summaryResponse.ok) {
+    throw new Error(`Wikipedia summary request failed with status ${summaryResponse.status}`);
+  }
+
+  const summary = await summaryResponse.json();
+
+  return {
+    title: summary.title ?? pageTitle,
+    description: summary.extract ?? summary.description ?? 'No description available.',
+    imageUrl: summary.originalimage?.source ?? summary.thumbnail?.source ?? null,
+    pageUrl: summary?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replaceAll(' ', '_'))}`,
+  };
 }
 
 export async function loadSchedules(filePath) {

@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node src/app.js",
     "register": "node src/commands.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "smoke": "node src/smoke-test.js"
   },
   "author": "Shay DeWael",
   "license": "MIT",

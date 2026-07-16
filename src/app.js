@@ -10,11 +10,15 @@ import {
 import { registerCommands } from './commands.js';
 import {
   BIRD_INTERVALS,
-  fetchBirdDrop,
   getIntervalConfig,
+  getRandomBirdFact,
+  loadBirdTaxonomy,
   loadSchedules,
+  pickRandomBird,
   resolveSchedulesPath,
+  resolveTaxonomyPath,
   saveSchedules,
+  fetchWikipediaBirdInfo,
 } from './utils.js';
 
 const client = new Client({
@@ -24,8 +28,10 @@ const client = new Client({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const schedulesPath = resolveSchedulesPath(path.join(__dirname, '..', 'data', 'schedules.json'));
+const taxonomyPath = resolveTaxonomyPath(path.join(__dirname, '..', 'data', 'ebird-taxonomy.json'));
 const scheduleState = new Map();
 const guildSchedules = await loadSchedules(schedulesPath);
+const taxonomy = await loadBirdTaxonomy(taxonomyPath);
 
 function clearTimer(guildId) {
   const existing = scheduleState.get(guildId);
@@ -38,14 +44,23 @@ function clearTimer(guildId) {
 }
 
 async function postBird(channel) {
-  const drop = await fetchBirdDrop();
+  const bird = pickRandomBird(taxonomy);
+  const wikipediaInfo = await fetchWikipediaBirdInfo(bird.sciName);
+  const fact = getRandomBirdFact();
   const embed = new EmbedBuilder()
-    .setTitle('Bird Drop')
-    .setDescription(drop.fact)
-    .setImage(drop.imageUrl)
+    .setTitle(`${bird.comName} (${bird.sciName})`)
+    .setDescription([wikipediaInfo.description, '', `Fact: ${fact}`].join('\n'))
     .setColor(0x8f6b3f)
-    .setFooter({ text: 'BirdBot' })
+    .setFooter({ text: `Wikipedia: ${wikipediaInfo.title}` })
     .setTimestamp(new Date());
+
+  if (wikipediaInfo.imageUrl) {
+    embed.setImage(wikipediaInfo.imageUrl);
+  }
+
+  if (wikipediaInfo.pageUrl) {
+    embed.setURL(wikipediaInfo.pageUrl);
+  }
 
   await channel.send({ embeds: [embed] });
 }
