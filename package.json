@@ -2,24 +2,22 @@
   "name": "discord-getting-started",
   "private": true,
   "version": "1.0.0",
-  "description": "Discord example app",
-  "main": "app.js",
+  "description": "Discord bird schedule bot",
+  "main": "src/app.js",
   "type": "module",
   "engines": {
     "node": ">=18.x"
   },
   "scripts": {
-    "start": "node app.js",
-    "register": "node commands.js",
-    "dev": "nodemon app.js"
+    "start": "node src/app.js",
+    "register": "node src/commands.js",
+    "dev": "nodemon src/app.js"
   },
   "author": "Shay DeWael",
   "license": "MIT",
   "dependencies": {
-    "discord-interactions": "^4.0.0",
-    "dotenv": "^16.0.3",
-    "express": "^4.18.2",
-    "unsplash-js": "^7.0.19"
+    "discord.js": "^14.22.1",
+    "dotenv": "^16.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.0"
