@@ -11,6 +11,26 @@ BirdBot posts a random bird from a cached eBird taxonomy file, then looks up the
 
 On first run, the bot downloads the eBird taxonomy JSON and saves it to `data/ebird-taxonomy.json`. Later runs reuse that file.
 
+## Run With Docker
+
+Use Docker Compose from the repo root:
+
+```bash
+docker compose up --build -d
+```
+
+The container runs `npm run register` first and then starts the bot. The service restarts automatically unless stopped, and the cached bird data is stored in the named volume `birdbot-data`.
+
+Open the local status page at <http://localhost:8080>.
+
+Check JSON health data at <http://localhost:8080/health>.
+
+To stop it later:
+
+```bash
+docker compose down
+```
+
 ## Commands
 
 - `/bird post interval:<hourly|twelve_hours|daily> [channel]` starts a schedule and posts immediately.
@@ -21,7 +41,7 @@ On first run, the bot downloads the eBird taxonomy JSON and saves it to `data/eb
 ## Files
 
 - `src/` contains the bot source.
-- `data/` stores saved schedules.
+- `data/` stores saved schedules when running locally.
 - `Dockerfile` and `docker-compose.yml` are ready for container deployment.
 
 ## GitHub Actions

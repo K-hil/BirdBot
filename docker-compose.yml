@@ -1,7 +1,13 @@
 services:
   birdbot:
     build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - birdbot-data:/app/data
+
+volumes:
+  birdbot-data:

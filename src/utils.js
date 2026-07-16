@@ -61,6 +61,7 @@ async function fileExists(filePath) {
 
 export async function loadBirdTaxonomy(filePath) {
   if (await fileExists(filePath)) {
+    console.log(`Loading cached bird taxonomy from ${filePath}`);
     const content = await fs.readFile(filePath, 'utf8');
     return JSON.parse(content);
   }
@@ -71,6 +72,7 @@ export async function loadBirdTaxonomy(filePath) {
     throw new Error('Missing EBIRD_API_KEY');
   }
 
+  console.log('Downloading bird taxonomy from eBird');
   const response = await fetch('https://api.ebird.org/v2/ref/taxonomy/ebird?fmt=json', {
     headers: {
       'X-eBirdApiToken': apiKey,
@@ -89,6 +91,7 @@ export async function loadBirdTaxonomy(filePath) {
 
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+  console.log(`Saved bird taxonomy cache to ${filePath}`);
 
   return data;
 }

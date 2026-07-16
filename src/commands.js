@@ -65,12 +65,16 @@ export async function registerCommands() {
   const rest = new REST({ version: '10' }).setToken(token);
   const commands = [buildBirdCommand()];
 
+  console.log(`Registering slash commands${guildId ? ` for guild ${guildId}` : ' globally'}`);
+
   if (guildId) {
     await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: commands });
+    console.log('Guild slash commands registered');
     return { scope: 'guild', guildId };
   }
 
   await rest.put(Routes.applicationCommands(clientId), { body: commands });
+  console.log('Global slash commands registered');
   return { scope: 'global' };
 }
 
