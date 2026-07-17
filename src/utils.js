@@ -267,31 +267,10 @@ export async function fetchWikipediaBirdInfo(scientificName) {
 
   const summary = await summaryResponse.json();
 
-  let imageUrl = summary.originalimage?.source ?? summary.thumbnail?.source ?? null;
-
-  if (!imageUrl) {
-    const pageImageUrl = new URL('https://en.wikipedia.org/w/api.php');
-    pageImageUrl.searchParams.set('action', 'query');
-    pageImageUrl.searchParams.set('titles', pageTitle);
-    pageImageUrl.searchParams.set('prop', 'pageimages');
-    pageImageUrl.searchParams.set('piprop', 'original|thumbnail');
-    pageImageUrl.searchParams.set('format', 'json');
-    pageImageUrl.searchParams.set('origin', '*');
-
-    const pageImageResponse = await fetch(pageImageUrl);
-
-    if (pageImageResponse.ok) {
-      const pageImageData = await pageImageResponse.json();
-      const pages = pageImageData?.query?.pages ?? {};
-      const firstPage = Object.values(pages)[0];
-      imageUrl = firstPage?.original?.source ?? firstPage?.thumbnail?.source ?? null;
-    }
-  }
-
   return {
     title: summary.title ?? pageTitle,
     description: summary.extract ?? summary.description ?? 'No description available.',
-    imageUrl,
+    imageUrl: summary.originalimage?.source ?? summary.thumbnail?.source ?? null,
     pageUrl: summary?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replaceAll(' ', '_'))}`,
   };
 }
