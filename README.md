@@ -10,6 +10,7 @@ BirdBot posts a random bird from a cached eBird taxonomy file, then looks up the
 4. Start the bot with `npm start`.
 
 On first run, the bot downloads the eBird taxonomy JSON and saves it to `data/ebird-taxonomy.json`. Later runs reuse that file.
+If you use the fixed-time schedule, set `TZ` in `.env` so times like `7am` and `7pm` match your local timezone.
 
 ## Run With Docker
 
@@ -34,6 +35,7 @@ docker compose down
 ## Commands
 
 - `/bird post interval:<hourly|twelve_hours|daily> [channel]` starts a schedule and posts immediately.
+- `/bird times times:<7am,7pm|07:00,19:00> [channel]` posts every day at the selected times and uses `TZ` from `.env`.
 - `/bird stop [channel]` stops the schedule.
 - `/bird now [channel]` posts a bird right away.
 - `/bird status` shows the active schedule.

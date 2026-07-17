@@ -34,6 +34,31 @@ export function getIntervalConfig(intervalKey) {
   return BIRD_INTERVALS[intervalKey] ?? null;
 }
 
+export function getScheduleKind(schedule) {
+  if (schedule?.kind) {
+    return schedule.kind;
+  }
+
+  if (schedule?.times) {
+    return 'fixed_times';
+  }
+
+  return 'interval';
+}
+
+export function getScheduleLabel(schedule) {
+  if (!schedule) {
+    return 'unknown schedule';
+  }
+
+  if (getScheduleKind(schedule) === 'fixed_times') {
+    return formatDailyTimesLabel(schedule.times);
+  }
+
+  const interval = getIntervalConfig(schedule.intervalKey);
+  return interval?.label ?? schedule.intervalKey ?? 'unknown schedule';
+}
+
 export function resolveSchedulesPath(customPath) {
   return path.resolve(customPath ?? process.env.BIRD_SCHEDULES_FILE ?? './data/schedules.json');
 }
@@ -44,6 +69,111 @@ export function resolveTaxonomyPath(customPath) {
 
 export function getRandomBirdFact() {
   return BIRD_FACTS[Math.floor(Math.random() * BIRD_FACTS.length)];
+}
+
+function parseTimePart(timePart) {
+  const trimmed = timePart.trim().toLowerCase();
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+
+  if (!match) {
+    throw new Error(`Invalid time value: ${timePart}`);
+  }
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2] ?? '0');
+  const meridiem = match[3]?.toLowerCase() ?? null;
+
+  if (minute < 0 || minute > 59) {
+    throw new Error(`Invalid minute value in: ${timePart}`);
+  }
+
+  if (meridiem) {
+    if (hour < 1 || hour > 12) {
+      throw new Error(`Invalid 12-hour clock value: ${timePart}`);
+    }
+
+    if (meridiem === 'am') {
+      hour = hour === 12 ? 0 : hour;
+    } else {
+      hour = hour === 12 ? 12 : hour + 12;
+    }
+  } else if (hour < 0 || hour > 23) {
+    throw new Error(`Invalid 24-hour clock value: ${timePart}`);
+  }
+
+  return hour * 60 + minute;
+}
+
+export function parseDailyTimesInput(input) {
+  const values = input
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map(parseTimePart);
+
+  const uniqueValues = [...new Set(values)].sort((left, right) => left - right);
+
+  if (uniqueValues.length === 0) {
+    throw new Error('Please provide at least one valid time.');
+  }
+
+  return uniqueValues;
+}
+
+function formatTimeOfDay(minutes) {
+  const hour24 = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const suffix = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`;
+}
+
+export function formatDailyTimesLabel(times) {
+  if (!Array.isArray(times) || times.length === 0) {
+    return 'every day at an unknown time';
+  }
+
+  return `every day at ${times.map(formatTimeOfDay).join(' and ')}`;
+}
+
+export function computeNextRunAt(schedule, now = Date.now()) {
+  if (!schedule) {
+    throw new Error('Missing schedule definition');
+  }
+
+  const scheduleKind = getScheduleKind(schedule);
+
+  if (scheduleKind === 'fixed_times') {
+    const times = Array.isArray(schedule.times) ? [...schedule.times].sort((left, right) => left - right) : [];
+
+    if (times.length === 0) {
+      throw new Error('No times were provided for the daily schedule');
+    }
+
+    const currentTime = new Date(now);
+
+    for (const minutes of times) {
+      const candidate = new Date(currentTime);
+      candidate.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+
+      if (candidate.getTime() > now) {
+        return candidate.getTime();
+      }
+    }
+
+    const nextDay = new Date(currentTime);
+    nextDay.setDate(nextDay.getDate() + 1);
+    nextDay.setHours(Math.floor(times[0] / 60), times[0] % 60, 0, 0);
+    return nextDay.getTime();
+  }
+
+  const interval = getIntervalConfig(schedule.intervalKey);
+
+  if (!interval) {
+    throw new Error(`Unsupported interval: ${schedule.intervalKey}`);
+  }
+
+  return now + interval.milliseconds;
 }
 
 async function fileExists(filePath) {

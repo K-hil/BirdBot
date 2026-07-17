@@ -10,11 +10,15 @@ import {
 } from 'discord.js';
 import {
   BIRD_INTERVALS,
+  computeNextRunAt,
   getIntervalConfig,
   getRandomBirdFact,
   loadBirdTaxonomy,
   loadSchedules,
   pickRandomBird,
+  parseDailyTimesInput,
+  getScheduleLabel,
+  getScheduleKind,
   resolveSchedulesPath,
   resolveTaxonomyPath,
   saveSchedules,
@@ -86,15 +90,16 @@ async function postBird(channel) {
 }
 
 async function scheduleGuildPost(guildId, channelId, intervalKey) {
-  const interval = getIntervalConfig(intervalKey);
+  const schedule = guildSchedules[guildId];
 
-  if (!interval) {
-    throw new Error(`Unsupported interval: ${intervalKey}`);
+  if (!schedule) {
+    throw new Error(`Missing schedule for guild ${guildId}`);
   }
 
   clearTimer(guildId);
 
-  const nextRunAt = Date.now() + interval.milliseconds;
+  const nextRunAt = computeNextRunAt(schedule);
+  const delay = Math.max(0, nextRunAt - Date.now());
   const timeout = setTimeout(async () => {
     try {
       const guild = await client.guilds.fetch(guildId);
@@ -115,12 +120,14 @@ async function scheduleGuildPost(guildId, channelId, intervalKey) {
         await scheduleGuildPost(guildId, current.channelId, current.intervalKey);
       }
     }
-  }, interval.milliseconds);
+  }, delay);
 
   scheduleState.set(guildId, {
     guildId,
     channelId,
-    intervalKey,
+    intervalKey: schedule.intervalKey ?? null,
+    kind: getScheduleKind(schedule),
+    times: schedule.times ?? null,
     timeout,
     nextRunAt,
   });
@@ -200,6 +207,38 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
+  if (subcommand === 'times') {
+    const targetChannel = resolveTargetChannel(interaction);
+
+    if (!targetChannel || typeof targetChannel.send !== 'function') {
+      await interaction.reply({ content: 'Pick a text channel for bird posts.', ephemeral: true });
+      return;
+    }
+
+    let times;
+
+    try {
+      times = parseDailyTimesInput(interaction.options.getString('times', true));
+    } catch (error) {
+      await interaction.reply({ content: error.message, ephemeral: true });
+      return;
+    }
+
+    guildSchedules[guildId] = {
+      channelId: targetChannel.id,
+      kind: 'fixed_times',
+      times,
+    };
+    await persistSchedules();
+    await scheduleGuildPost(guildId, targetChannel.id, null);
+
+    await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({
+      content: `Bird posts are now scheduled in ${targetChannel} ${getScheduleLabel(guildSchedules[guildId])}.`,
+    });
+    return;
+  }
+
   if (subcommand === 'stop') {
     const targetChannel = resolveTargetChannel(interaction);
 
@@ -248,13 +287,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return;
     }
 
-    const interval = BIRD_INTERVALS[current.intervalKey];
     const nextRun = scheduleState.get(guildId)?.nextRunAt;
 
     await interaction.reply({
       content: [
         `Channel: <#${current.channelId}>`,
-        `Interval: ${interval?.label ?? current.intervalKey}`,
+        `Schedule: ${getScheduleLabel(current)}`,
         nextRun ? `Next post: <t:${Math.floor(nextRun / 1000)}:R>` : null,
       ]
         .filter(Boolean)

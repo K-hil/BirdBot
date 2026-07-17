@@ -50,6 +50,20 @@ export function buildBirdCommand() {
           option.setName('channel').setDescription('Channel to inspect').setRequired(false),
         ),
     )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName('times')
+        .setDescription('Post birds every day at specific times (uses TZ from .env)')
+        .addStringOption((option) =>
+          option
+            .setName('times')
+            .setDescription('Comma-separated times like 7am,7pm or 07:00,19:00')
+            .setRequired(true),
+        )
+        .addChannelOption((option) =>
+          option.setName('channel').setDescription('Channel to post birds in').setRequired(false),
+        ),
+    )
     .toJSON();
 }
 
