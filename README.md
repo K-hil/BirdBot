@@ -32,6 +32,17 @@ To stop it later:
 docker compose down
 ```
 
+## Run On Vercel
+
+This repository now includes a `vercel.json` and a lightweight status function, so you can deploy the public web surface to Vercel.
+
+Deploying the full Discord bot on Vercel is not supported because the bot needs a persistent process to stay logged in and schedule posts. Use Vercel for the status page and health checks, and keep the bot itself on Docker, a VM, or another always-on host.
+
+The Vercel deployment exposes:
+
+- `/` for the status page
+- `/health` and `/api/health` for JSON health data
+
 ## Commands
 
 - `/bird post interval:<hourly|twelve_hours|daily> [channel]` starts a schedule and posts immediately.
