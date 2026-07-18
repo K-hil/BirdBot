@@ -1,20 +1,15 @@
 import 'dotenv/config';
-import {
-  fetchWikipediaBirdInfo,
-  loadBirdTaxonomy,
-  pickRandomBird,
-  resolveTaxonomyPath,
-} from './utils.js';
+import { loadBirdCatalog, pickRandomBird, resolveBirdCatalogPath } from './utils.js';
 
-const taxonomy = await loadBirdTaxonomy(resolveTaxonomyPath('./data/ebird-taxonomy.json'));
-const bird = pickRandomBird(taxonomy);
-const wiki = await fetchWikipediaBirdInfo(bird.sciName);
+const catalog = await loadBirdCatalog(resolveBirdCatalogPath('./data/birds.json'));
+const bird = pickRandomBird(catalog);
 
 console.log(JSON.stringify({
-  commonName: bird.comName,
-  scientificName: bird.sciName,
-  wikiTitle: wiki.title,
-  hasImage: Boolean(wiki.imageUrl),
-  Image: wiki.imageUrl || "NOURL",
-  description: wiki.description,
+  commonName: bird.commonName,
+  scientificName: bird.scientificName,
+  hasImage: Boolean(bird.imageUrl),
+  imageUrl: bird.imageUrl ?? 'NOURL',
+  conservationStatus: bird.conservationStatus,
+  description: bird.description,
+  sourceUrl: bird.sourceUrl,
 }, null, 2));

@@ -63,8 +63,8 @@ export function resolveSchedulesPath(customPath) {
   return path.resolve(customPath ?? process.env.BIRD_SCHEDULES_FILE ?? './data/schedules.json');
 }
 
-export function resolveTaxonomyPath(customPath) {
-  return path.resolve(customPath ?? process.env.BIRD_TAXONOMY_FILE ?? './data/ebird-taxonomy.json');
+export function resolveBirdCatalogPath(customPath) {
+  return path.resolve(customPath ?? process.env.BIRD_CATALOG_FILE ?? './data/birds.json');
 }
 
 export function getRandomBirdFact() {
@@ -189,90 +189,111 @@ async function fileExists(filePath) {
   }
 }
 
-export async function loadBirdTaxonomy(filePath) {
+function normalizeBirdSource(bird) {
+  if (!bird || typeof bird !== 'object') {
+    return null;
+  }
+
+  const commonName = bird.common_name ?? bird.commonName ?? null;
+  const scientificName = bird.scientific_name ?? bird.scientificName ?? null;
+
+  if (!commonName || !scientificName) {
+    return null;
+  }
+
+  const imageUrl = bird.male_image ?? bird.female_image ?? bird.other_images?.[0]?.source ?? null;
+  const sourceUrl = bird.sources ?? null;
+
+  const normalizeUrl = (value) => {
+    if (!value) {
+      return null;
+    }
+
+    return value.startsWith('//') ? `https:${value}` : value;
+  };
+
+  return {
+    id: bird.id ?? null,
+    commonName,
+    scientificName,
+    imageUrl: normalizeUrl(imageUrl),
+    conservationStatus: bird.conservation_status ?? null,
+    description: bird.description ?? 'No description available.',
+    sourceUrl: normalizeUrl(sourceUrl),
+    soundUrl: bird.sound ?? null,
+    raw: bird,
+  };
+}
+
+function normalizeBirdCatalog(data) {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map(normalizeBirdSource).filter(Boolean);
+}
+
+export async function loadBirdCatalog(filePath) {
   if (await fileExists(filePath)) {
-    console.log(`Loading cached bird taxonomy from ${filePath}`);
+    console.log(`Loading cached bird catalog from ${filePath}`);
     const content = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(content);
+    return normalizeBirdCatalog(JSON.parse(content));
   }
 
-  const apiKey = process.env.EBIRD_API_KEY;
+  const catalogUrl = process.env.BIRD_CATALOG_URL ?? 'https://ornithophile.vercel.app/api/birds';
 
-  if (!apiKey) {
-    throw new Error('Missing EBIRD_API_KEY');
-  }
-
-  console.log('Downloading bird taxonomy from eBird');
-  const response = await fetch('https://api.ebird.org/v2/ref/taxonomy/ebird?fmt=json', {
-    headers: {
-      'X-eBirdApiToken': apiKey,
-    },
-  });
+  console.log(`Downloading bird catalog from ${catalogUrl}`);
+  const response = await fetch(catalogUrl);
 
   if (!response.ok) {
-    throw new Error(`eBird taxonomy request failed with status ${response.status}`);
+    throw new Error(`Bird catalog request failed with status ${response.status}`);
   }
 
   const data = await response.json();
 
   if (!Array.isArray(data)) {
-    throw new Error('eBird taxonomy response did not contain an array');
+    throw new Error('Bird catalog response did not contain an array');
+  }
+
+  const catalog = normalizeBirdCatalog(data);
+
+  if (catalog.length === 0) {
+    throw new Error('Bird catalog did not contain any usable bird objects');
   }
 
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-  console.log(`Saved bird taxonomy cache to ${filePath}`);
+  console.log(`Saved bird catalog cache to ${filePath}`);
 
-  return data;
+  return catalog;
 }
 
-export function pickRandomBird(taxonomy) {
-  const speciesOnly = taxonomy.filter((bird) => bird?.category === 'species' && bird?.comName && bird?.sciName);
-  const pool = speciesOnly.length > 0 ? speciesOnly : taxonomy.filter((bird) => bird?.comName && bird?.sciName);
+export function pickRandomBird(catalog) {
+  const pool = Array.isArray(catalog) ? catalog.filter((bird) => bird?.commonName && bird?.scientificName) : [];
 
   if (pool.length === 0) {
-    throw new Error('No birds were found in the taxonomy file');
+    throw new Error('No birds were found in the bird catalog');
   }
 
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-export async function fetchWikipediaBirdInfo(scientificName) {
-  const searchUrl = new URL('https://en.wikipedia.org/w/api.php');
-  searchUrl.searchParams.set('action', 'query');
-  searchUrl.searchParams.set('list', 'search');
-  searchUrl.searchParams.set('srsearch', scientificName);
-  searchUrl.searchParams.set('format', 'json');
-  searchUrl.searchParams.set('origin', '*');
-
-  const searchResponse = await fetch(searchUrl);
-
-  if (!searchResponse.ok) {
-    throw new Error(`Wikipedia search request failed with status ${searchResponse.status}`);
+export function formatBirdCaption(bird) {
+  if (!bird) {
+    return 'No bird data available.';
   }
 
-  const searchData = await searchResponse.json();
-  const pageTitle = searchData?.query?.search?.[0]?.title;
+  const parts = [bird.description];
 
-  if (!pageTitle) {
-    throw new Error(`No Wikipedia page found for ${scientificName}`);
+  if (bird.conservationStatus) {
+    parts.push(`Status: ${bird.conservationStatus}`);
   }
 
-  const summaryUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`;
-  const summaryResponse = await fetch(summaryUrl);
-
-  if (!summaryResponse.ok) {
-    throw new Error(`Wikipedia summary request failed with status ${summaryResponse.status}`);
+  if (bird.sourceUrl) {
+    parts.push(`Source: ${bird.sourceUrl}`);
   }
 
-  const summary = await summaryResponse.json();
-
-  return {
-    title: summary.title ?? pageTitle,
-    description: summary.extract ?? summary.description ?? 'No description available.',
-    imageUrl: summary.originalimage?.source ?? summary.thumbnail?.source ?? null,
-    pageUrl: summary?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replaceAll(' ', '_'))}`,
-  };
+  return parts.filter(Boolean).join('\n\n');
 }
 
 export async function loadSchedules(filePath) {

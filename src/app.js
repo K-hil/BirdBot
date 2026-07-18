@@ -9,20 +9,19 @@ import {
   GatewayIntentBits,
 } from 'discord.js';
 import {
-  BIRD_INTERVALS,
   computeNextRunAt,
+  formatBirdCaption,
   getIntervalConfig,
   getRandomBirdFact,
-  loadBirdTaxonomy,
+  loadBirdCatalog,
   loadSchedules,
   pickRandomBird,
   parseDailyTimesInput,
   getScheduleLabel,
   getScheduleKind,
   resolveSchedulesPath,
-  resolveTaxonomyPath,
+  resolveBirdCatalogPath,
   saveSchedules,
-  fetchWikipediaBirdInfo,
 } from './utils.js';
 
 const client = new Client({
@@ -32,17 +31,17 @@ const client = new Client({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const schedulesPath = resolveSchedulesPath(path.join(__dirname, '..', 'data', 'schedules.json'));
-const taxonomyPath = resolveTaxonomyPath(path.join(__dirname, '..', 'data', 'ebird-taxonomy.json'));
+const birdCatalogPath = resolveBirdCatalogPath(path.join(__dirname, '..', 'data', 'birds.json'));
 const port = Number(process.env.PORT ?? 8080);
 const scheduleState = new Map();
 console.log('BirdBot booting');
 console.log(`Schedules file: ${schedulesPath}`);
-console.log(`Taxonomy cache: ${taxonomyPath}`);
+console.log(`Bird catalog cache: ${birdCatalogPath}`);
 const guildSchedules = await loadSchedules(schedulesPath);
 console.log(`Loaded ${Object.keys(guildSchedules).length} saved schedule(s)`);
-console.log('Loading bird taxonomy...');
-const taxonomy = await loadBirdTaxonomy(taxonomyPath);
-console.log(`Loaded ${taxonomy.length} bird taxonomy record(s)`);
+console.log('Loading bird catalog...');
+const birdCatalog = await loadBirdCatalog(birdCatalogPath);
+console.log(`Loaded ${birdCatalog.length} bird record(s)`);
 const botStartedAt = Date.now();
 const runtimeState = {
   lastBird: null,
@@ -59,31 +58,31 @@ function clearTimer(guildId) {
 }
 
 async function postBird(channel) {
-  const bird = pickRandomBird(taxonomy);
-  const wikipediaInfo = await fetchWikipediaBirdInfo(bird.sciName);
+  const bird = pickRandomBird(birdCatalog);
   const fact = getRandomBirdFact();
   const embed = new EmbedBuilder()
-    .setTitle(`${bird.comName} (${bird.sciName})`)
-    .setDescription([wikipediaInfo.description, '', `Fact: ${fact}`].join('\n'))
+    .setTitle(`${bird.commonName} (${bird.scientificName})`)
+    .setDescription([formatBirdCaption(bird), '', `Fact: ${fact}`].join('\n'))
     .setColor(0x8f6b3f)
-    .setFooter({ text: `Wikipedia: ${wikipediaInfo.title}` })
+    .setFooter({ text: 'Bird data provided by ornithophile.vercel.app' })
     .setTimestamp(new Date());
 
-  if (wikipediaInfo.imageUrl) {
-    embed.setImage(wikipediaInfo.imageUrl);
+  if (bird.imageUrl) {
+    embed.setImage(bird.imageUrl);
   }
 
-  if (wikipediaInfo.pageUrl) {
-    embed.setURL(wikipediaInfo.pageUrl);
+  if (bird.sourceUrl) {
+    embed.setURL(bird.sourceUrl);
   }
 
   await channel.send({ embeds: [embed] });
 
   runtimeState.lastBird = {
-    commonName: bird.comName,
-    scientificName: bird.sciName,
-    wikipediaTitle: wikipediaInfo.title,
-    hasImage: Boolean(wikipediaInfo.imageUrl),
+    commonName: bird.commonName,
+    scientificName: bird.scientificName,
+    conservationStatus: bird.conservationStatus,
+    hasImage: Boolean(bird.imageUrl),
+    sourceUrl: bird.sourceUrl,
     fact,
     updatedAt: new Date().toISOString(),
   };
@@ -330,7 +329,7 @@ const webServer = http.createServer((request, response) => {
   }
 
   const latestBird = runtimeState.lastBird
-    ? `<section class="card"><h2>Latest Bird</h2><p><strong>${runtimeState.lastBird.commonName}</strong> (${runtimeState.lastBird.scientificName})</p><p>Wikipedia: ${runtimeState.lastBird.wikipediaTitle}</p><p>${runtimeState.lastBird.fact}</p><p>Updated: ${runtimeState.lastBird.updatedAt}</p></section>`
+    ? `<section class="card"><h2>Latest Bird</h2><p><strong>${runtimeState.lastBird.commonName}</strong> (${runtimeState.lastBird.scientificName})</p><p>Status: ${runtimeState.lastBird.conservationStatus ?? 'Unknown'}</p><p>Source: ${runtimeState.lastBird.sourceUrl ?? 'Unavailable'}</p><p>${runtimeState.lastBird.fact}</p><p>Updated: ${runtimeState.lastBird.updatedAt}</p></section>`
     : '<section class="card"><h2>Latest Bird</h2><p>No bird has been posted yet.</p></section>';
 
   const html = `<!doctype html>
