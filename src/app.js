@@ -34,7 +34,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const schedulesPath = resolveSchedulesPath(path.join(__dirname, '..', 'data', 'schedules.json'));
 const birdCatalogPath = resolveBirdCatalogPath(path.join(__dirname, '..', 'data', 'birds.json'));
-const animalFactsPath = resolveAnimalFactsPath(path.join(__dirname, '..', 'data', 'animal-fun-facts-dataset.csv'));
+const animalFactsPath = resolveAnimalFactsPath(path.join(__dirname, '..', 'assets', 'funfacts.csv'));
 const port = Number(process.env.PORT ?? 8080);
 const scheduleState = new Map();
 console.log('BirdBot booting');

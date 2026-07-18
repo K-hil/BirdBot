@@ -376,14 +376,14 @@ export function formatBirdCaption(bird) {
     return 'No bird data available.';
   }
 
-  const parts = [bird.description];
+  const parts = [];
 
   if (bird.conservationStatus) {
     parts.push(`Status: ${bird.conservationStatus}`);
   }
 
-  if (bird.soundUrl) {
-    parts.push(`Status: ${bird.soundURL}`);
+  if (bird.soundUrl != undefined) {
+    parts.push(`Sound: ${bird.soundURL}`);
   }
 
   return parts.filter(Boolean).join('\n\n');
