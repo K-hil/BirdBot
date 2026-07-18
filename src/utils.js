@@ -67,8 +67,101 @@ export function resolveBirdCatalogPath(customPath) {
   return path.resolve(customPath ?? process.env.BIRD_CATALOG_FILE ?? './data/birds.json');
 }
 
-export function getRandomBirdFact() {
-  return BIRD_FACTS[Math.floor(Math.random() * BIRD_FACTS.length)];
+export function resolveAnimalFactsPath(customPath) {
+  return path.resolve(customPath ?? process.env.ANIMAL_FACTS_FILE ?? './data/animal-fun-facts-dataset.csv');
+}
+
+function parseCsvContent(content) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+    const nextCharacter = content[index + 1];
+
+    if (inQuotes) {
+      if (character === '"' && nextCharacter === '"') {
+        field += '"';
+        index += 1;
+      } else if (character === '"') {
+        inQuotes = false;
+      } else {
+        field += character;
+      }
+
+      continue;
+    }
+
+    if (character === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    if (character === ',') {
+      row.push(field);
+      field = '';
+      continue;
+    }
+
+    if (character === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+      continue;
+    }
+
+    if (character === '\r') {
+      continue;
+    }
+
+    field += character;
+  }
+
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function normalizeAnimalFactRow(row) {
+  const fact = row?.text?.trim();
+
+  if (!fact) {
+    return null;
+  }
+
+  return fact.replace(/\s+/g, ' ');
+}
+
+export async function loadAnimalFacts(filePath) {
+  const content = await fs.readFile(filePath, 'utf8');
+  const rows = parseCsvContent(content);
+
+  if (rows.length < 2) {
+    throw new Error('Animal facts CSV did not contain any data');
+  }
+
+  const [headers, ...dataRows] = rows;
+  const normalizedHeaders = headers.map((header) => header.trim());
+  const facts = dataRows
+    .map((values) => Object.fromEntries(normalizedHeaders.map((header, index) => [header, values[index] ?? ''])))
+    .map(normalizeAnimalFactRow)
+    .filter(Boolean);
+
+  if (facts.length === 0) {
+    throw new Error('Animal facts CSV did not contain any usable facts');
+  }
+
+  return facts;
+}
+
+export function getRandomBirdFact(facts = BIRD_FACTS) {
+  return facts[Math.floor(Math.random() * facts.length)];
 }
 
 function parseTimePart(timePart) {
@@ -289,8 +382,8 @@ export function formatBirdCaption(bird) {
     parts.push(`Status: ${bird.conservationStatus}`);
   }
 
-  if (bird.sourceUrl) {
-    parts.push(`Source: ${bird.sourceUrl}`);
+  if (bird.soundUrl) {
+    parts.push(`Status: ${bird.soundURL}`);
   }
 
   return parts.filter(Boolean).join('\n\n');

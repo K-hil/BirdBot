@@ -14,11 +14,13 @@ import {
   getIntervalConfig,
   getRandomBirdFact,
   loadBirdCatalog,
+  loadAnimalFacts,
   loadSchedules,
   pickRandomBird,
   parseDailyTimesInput,
   getScheduleLabel,
   getScheduleKind,
+  resolveAnimalFactsPath,
   resolveSchedulesPath,
   resolveBirdCatalogPath,
   saveSchedules,
@@ -32,16 +34,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const schedulesPath = resolveSchedulesPath(path.join(__dirname, '..', 'data', 'schedules.json'));
 const birdCatalogPath = resolveBirdCatalogPath(path.join(__dirname, '..', 'data', 'birds.json'));
+const animalFactsPath = resolveAnimalFactsPath(path.join(__dirname, '..', 'data', 'animal-fun-facts-dataset.csv'));
 const port = Number(process.env.PORT ?? 8080);
 const scheduleState = new Map();
 console.log('BirdBot booting');
 console.log(`Schedules file: ${schedulesPath}`);
 console.log(`Bird catalog cache: ${birdCatalogPath}`);
+console.log(`Animal facts source: ${animalFactsPath}`);
 const guildSchedules = await loadSchedules(schedulesPath);
 console.log(`Loaded ${Object.keys(guildSchedules).length} saved schedule(s)`);
 console.log('Loading bird catalog...');
 const birdCatalog = await loadBirdCatalog(birdCatalogPath);
 console.log(`Loaded ${birdCatalog.length} bird record(s)`);
+console.log('Loading animal facts...');
+const animalFacts = await loadAnimalFacts(animalFactsPath);
+console.log(`Loaded ${animalFacts.length} animal fact(s)`);
 const botStartedAt = Date.now();
 const runtimeState = {
   lastBird: null,
@@ -59,12 +66,12 @@ function clearTimer(guildId) {
 
 async function postBird(channel) {
   const bird = pickRandomBird(birdCatalog);
-  const fact = getRandomBirdFact();
+  const fact = getRandomBirdFact(animalFacts);
   const embed = new EmbedBuilder()
     .setTitle(`${bird.commonName} (${bird.scientificName})`)
-    .setDescription([formatBirdCaption(bird), '', `Fact: ${fact}`].join('\n'))
-    .setColor(0x8f6b3f)
-    .setFooter({ text: 'Bird data provided by ornithophile.vercel.app' })
+    .setDescription([formatBirdCaption(bird), '', `Random Animal Fact: ${fact}`].join('\n'))
+    .setColor(0x8c2a9c)
+    .setFooter({ text: 'I love you so much <3' })
     .setTimestamp(new Date());
 
   if (bird.imageUrl) {

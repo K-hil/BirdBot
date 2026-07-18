@@ -45,3 +45,7 @@ docker compose down
 - `src/` contains the bot source.
 - `data/` stores saved schedules when running locally.
 - `Dockerfile` and `docker-compose.yml` are ready for container deployment.
+
+#### Fun Facts Source
+Github Repo: [ekohrt]( 
+https://github.com/ekohrt/animal-fun-facts-dataset)
