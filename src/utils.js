@@ -128,9 +128,9 @@ function parseCsvContent(content) {
   return rows;
 }
 
-function normalizeAnimalFactRow(row) {
-  const animal = row?.animal?.trim();
-  const fact = row?.text?.trim();
+function normalizeAnimalFactRow(row = {}) {
+  const animal = String(row.animal ?? row.animal_name ?? row.name ?? '').trim();
+  const fact = String(row.text ?? row.fact ?? row.fact_text ?? '').trim();
 
   if (!fact || !animal) {
     return null;
@@ -148,7 +148,7 @@ export async function loadAnimalFacts(filePath) {
   }
 
   const [headers, ...dataRows] = rows;
-  const normalizedHeaders = headers.map((header) => header.trim());
+  const normalizedHeaders = headers.map((header) => header.trim().replace(/^\uFEFF/, ''));
   const facts = dataRows
     .map((values) => Object.fromEntries(normalizedHeaders.map((header, index) => [header, values[index] ?? ''])))
     .map(normalizeAnimalFactRow)
