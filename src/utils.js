@@ -129,13 +129,14 @@ function parseCsvContent(content) {
 }
 
 function normalizeAnimalFactRow(row) {
+  const animal = row?.animal?.trim();
   const fact = row?.text?.trim();
 
-  if (!fact) {
+  if (!fact || !animal) {
     return null;
   }
 
-  return fact.replace(/\s+/g, ' ');
+  return { animal: animal.replace(/\s+/g, ' '), fact: fact.replace(/\s+/g, ' ') };
 }
 
 export async function loadAnimalFacts(filePath) {
@@ -161,6 +162,10 @@ export async function loadAnimalFacts(filePath) {
 }
 
 export function getRandomBirdFact(facts = BIRD_FACTS) {
+  if (Array.isArray(facts) && facts.length > 0 && typeof facts[0] === 'object' && 'animal' in facts[0]) {
+    const randomFact = facts[Math.floor(Math.random() * facts.length)];
+    return `${randomFact.animal} - ${randomFact.fact}?`;
+  }
   return facts[Math.floor(Math.random() * facts.length)];
 }
 
