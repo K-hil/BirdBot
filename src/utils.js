@@ -164,7 +164,7 @@ export async function loadAnimalFacts(filePath) {
 export function getRandomBirdFact(facts = BIRD_FACTS) {
   if (Array.isArray(facts) && facts.length > 0 && typeof facts[0] === 'object' && 'animal' in facts[0]) {
     const randomFact = facts[Math.floor(Math.random() * facts.length)];
-    return `${randomFact.animal} - ${randomFact.fact}?`;
+    return `${randomFact.animal} - ${randomFact.fact}`;
   }
   return facts[Math.floor(Math.random() * facts.length)];
 }
@@ -387,7 +387,7 @@ export function formatBirdCaption(bird) {
     parts.push(`Status: ${bird.conservationStatus}`);
   }
 
-  if (bird.soundUrl != undefined) {
+  if (bird.soundUrl != undefined && bird.soundUrl != null && bird.soundUrl !== 'undefined' && bird.soundUrl) {
     parts.push(`Sound: ${bird.soundURL}`);
   }
 
